@@ -8,27 +8,7 @@
 
 ## Kiến trúc hệ thống
 
-```text
-Máy chủ vật lý: Windows 11 (MSI) + VirtualBox
-│
-├── Ubuntu 24.04 (192.168.56.10, 15 GB RAM)
-│   ├── Wazuh Manager, Indexer và Dashboard
-│   ├── Shuffle SOAR
-│   ├── TheHive
-│   └── Cortex
-│
-├── Kali Linux (192.168.56.20, 6 GB RAM)
-│   └── Máy tấn công và máy trạm của chuyên viên phân tích
-│
-├── Windows 10 VM (192.168.56.30, 4 GB RAM)
-│   └── Máy nạn nhân: Wazuh Agent + Sysmon
-│
-└── Windows 11 MSI (192.168.0.25)
-    └── Máy nạn nhân vật lý: Wazuh Agent + Sysmon
-
-Mạng Host-Only: 192.168.56.0/24
-Windows 11 vật lý kết nối tới máy chủ qua Bridged Adapter.
-```
+![alt text](assets/Cybersecurity_lab_architecture.jpeg)
 
 | Máy | Vai trò | Địa chỉ IP | RAM | Kết nối |
 |---|---|---:|---:|---|
@@ -219,38 +199,6 @@ Mã tạo nội dung alert và JSON body dùng trong Shuffle được lưu tại
 ![Kết quả Cortex Analyzer](assets/AnalyserReport.png)
 
 Xem hướng dẫn triển khai và kiểm thử end-to-end tại [Giai đoạn 6 — SOAR](docx/phase6-soar.md).
-
----
-
-## Truy cập các dịch vụ
-
-Khi các máy và dịch vụ đã được khởi động theo tài liệu từng giai đoạn:
-
-| Dịch vụ | Địa chỉ |
-|---|---|
-| Wazuh Dashboard | `https://192.168.56.10` |
-| Shuffle | `http://192.168.56.10:3001` |
-| TheHive | `http://192.168.56.10:9000` |
-| Cortex | `http://192.168.56.10:9001` |
-
-Repo hiện lưu tài liệu và các tệp cấu hình cần thiết; chưa có script tự động khởi động hoặc dừng toàn bộ lab. Hãy bắt đầu với [docx/phase1-setup.md](docx/phase1-setup.md), sau đó thực hiện lần lượt các giai đoạn.
-
----
-
-## Công nghệ sử dụng
-
-| Công nghệ | Phiên bản trong lab | Vai trò |
-|---|---|---|
-| Wazuh | 4.14.5 | SIEM, phát hiện, tương quan và cảnh báo |
-| Sysmon | Bản cài trong lab | Thu thập telemetry chuyên sâu trên Windows |
-| SwiftOnSecurity Sysmon Config | Bản dùng khi triển khai | Cấu hình thu thập Sysmon |
-| Shuffle | Bản dùng khi triển khai | Điều phối và tự động hóa SOAR |
-| TheHive | 5.2.x | Quản lý alert, case và quy trình phân tích |
-| Cortex | 3.1.x | Làm giàu observable |
-| VirtualBox | 7.x | Nền tảng ảo hóa |
-| Ubuntu | 24.04 LTS | Hệ điều hành máy chủ |
-| Kali Linux | Bản dùng trong lab | Mô phỏng tấn công và phân tích |
-| Windows 10 / 11 | Pro / Home | Endpoint giám sát |
 
 ---
 
