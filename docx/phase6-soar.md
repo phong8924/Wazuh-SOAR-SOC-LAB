@@ -311,15 +311,3 @@ sudo tail -f /var/ossec/logs/integrations.log
 | TheHive | 9000 | `http://192.168.56.10:9000` |
 | Cortex | 9001 | `http://192.168.56.10:9001` |
 | Shuffle | 3001 | `http://192.168.56.10:3001` |
-
-## Các bài học chính
-
-**Variable substitution trong Shuffle** — numeric field (severity) phải không có dấu nháy trong TheHive JSON body. `"severity": "$var"` gửi string; `"severity": $var` gửi integer. TheHive API từ chối string cho integer field với lỗi 400 BadRequest.
-
-**Shuffle output paths** — Output của Python node được lồng bên dưới `message`. `$build_alert.severity` không tồn tại; `$build_alert.message.severity` mới tồn tại. Cả condition và TheHive node đều cần full path.
-
-**TheHive org permissions** — Platform admin (`admin@thehive.local`) không có permission `manageAlert`. Shuffle phải authentication bằng một user có profile `analyst` trong target organisation. Platform admin chỉ dành cho platform management.
-
-**Docker Swarm và plain Docker cho Shuffle** — Orborus (Shuffle execution engine) mặc định sử dụng Docker Swarm mode. Trong single-node lab, Swarm gây ra worker container failure. Đặt `SHUFFLE_SWARM_CONFIG=` (trống) trong Orborus environment để tắt Swarm và sử dụng plain `docker run` — worker sẽ thực thi ổn định.
-
-**Memory pressure** — Ubuntu VM chạy đồng thời Wazuh OpenSearch, Cortex Elasticsearch, Cassandra, TheHive, Cortex và Shuffle OpenSearch. Tất cả đều là JVM process. TheHive cần 3–5 phút để bind hoàn toàn vào port 9000 sau khi restart do Pekko cluster initialisation. Kiểm tra bằng `sudo ss -tlnp | grep 9000` trước khi cho rằng service đã down.

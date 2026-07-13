@@ -124,7 +124,7 @@ Truy cập `https://192.168.56.10/app/dashboards` và nhấp vào **Create new d
 
 Mỗi visualisation được tạo thông qua **Create new** → chọn type → cấu hình tab Data → save → thêm vào canvas.
 
-### Các DQL filter hữu ích
+### Các DQL filter
 
 ```
 # Attack correlation rules only

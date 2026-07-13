@@ -181,6 +181,7 @@ onedrivepatcher.exe:
 ![Cấu hình Trusted Processes](../assets/TrustedProcesses.png)
 
 **Nội dung CDB list**
+
 ![Danh sách Trusted Processes](../assets/TrustedProcessesList.png)
 
 Suppression rule:
@@ -227,32 +228,3 @@ Suppression rule:
 | Xác minh detection thực | `echo test > $env:TEMP\test.exe` trên Windows 10 | 92213 vẫn kích hoạt ở level 15 |
 
 Cả bốn test đều được xác nhận hoạt động.
-
----
-
-## Các Command hữu ích
-
-```bash
-# Count all rules by frequency across all log files
-sudo find /var/ossec/logs/alerts/ -name "*.log" -exec grep "^Rule:" {} \; | awk '{print $2}' | sort | uniq -c | sort -rn | head -20
-
-# Find what processes triggered a specific rule
-sudo cat /var/ossec/logs/alerts/alerts.json | python3 -c "
-import sys, json
-for line in sys.stdin:
-    try:
-        a = json.loads(line)
-        if a.get('rule', {}).get('id') == 'RULE_ID':
-            print(a.get('data', {}).get('win', {}).get('eventdata', {}).get('image', 'unknown'))
-    except: pass
-" | sort | uniq -c | sort -rn
-
-# Search archived compressed logs
-sudo find /var/ossec/logs/alerts/ -name "ossec-alerts*.log.gz" -exec zcat {} \; 2>/dev/null | grep -A 15 "Rule: RULE_ID"
-
-# Verify CDB list is loaded
-sudo /var/ossec/bin/wazuh-logtest
-
-# Restart after rule changes
-sudo systemctl restart wazuh-manager
-```

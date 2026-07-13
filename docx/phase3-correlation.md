@@ -151,24 +151,27 @@ net accounts /lockoutthreshold:0
 ```
 
 **Mở khóa attacker account**
+
 ![Mở khóa Attacker](../assets/UnlockAttacker.png)
 
 **Metasploit SMB brute force đang chạy**
+
 ![Brute Force](../assets/BruteForce.png)
 
 **Metasploit tạo các failed logon attempt**
+
 ![Metasploit BF](../assets/MetasploitBF.png)
 
 **Các event 4625 được truyền vào Wazuh**
+
 ![Metasploit Alert](../assets/MetasploitAlert.png)
 
 **XML của Rule 100500**
+
 ![Correlation Rule](../assets/CorrelationRule.png)
 
-**Chạy lại attack sau khi mở khóa account**
-![Chạy lại Attack](../assets/AttackReRun.png)
-
 **Rule 100500 kích hoạt — level 14, T1110.001, 32 lần**
+
 ![Kích hoạt Correlation Rule](../assets/CorrelationRuleTrigger.png)
 
 ---
@@ -200,8 +203,6 @@ net accounts /lockoutthreshold:0
 
 ---
 
-## Các bài học chính
-
 ### Individual alert và correlation alert
 
 Individual alert cho bạn biết điều gì đã xảy ra. Correlation alert cho bạn biết có điều gì đó không ổn. Một lệnh `whoami` đơn lẻ là info event ở level 6. Ba command `whoami` + `ipconfig` + `net user` trong 30 giây từ cùng một account là incident ở level 12.
@@ -215,19 +216,3 @@ Correlation alert kích hoạt một lần và thông báo "recon burst detected
 Nếu không có `same_field`, frequency rule sẽ gộp event từ tất cả source. Một environment bận rộn sẽ liên tục kích hoạt brute force alert chỉ từ những failed logon thông thường trên nhiều user và machine khác nhau. `same_field` giới hạn phạm vi đếm vào một attacker, một account, một session.
 
 ---
-
-## Các Command hữu ích
-
-```bash
-# Restart manager after rule changes
-sudo systemctl restart wazuh-manager
-
-# Check rules loaded without errors
-sudo grep -i "error\|warning" /var/ossec/logs/ossec.log | grep "1006"
-
-# View recent correlation alerts
-sudo tail -100 /var/ossec/logs/alerts/alerts.log | grep -E "100500|100600|100601"
-
-# Test a rule against a raw log
-sudo /var/ossec/bin/wazuh-logtest
-```
