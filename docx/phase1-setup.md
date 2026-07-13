@@ -1,28 +1,28 @@
-# Phase 1 — Infrastructure Setup
+# Phase 1 — Thiết lập Infrastructure
 
-## Overview
+## Tổng quan
 
-Build the base lab: three VMs on a Host-Only network, Wazuh all-in-one on Ubuntu, agent + Sysmon on Windows 10, verified end-to-end.
+Xây dựng lab cơ bản: ba VM trên Host-Only network, Wazuh all-in-one trên Ubuntu, agent + Sysmon trên Windows 10, và xác minh end-to-end.
 
 ---
 
 ## 1. VirtualBox Network
 
-Create the Host-Only adapter (run on Windows host in PowerShell as Administrator):
+Tạo Host-Only adapter (chạy trên Windows host bằng PowerShell với quyền Administrator):
 
 ```powershell
 & "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" hostonlyif create
 & "C:\Program Files\Oracle\VirtualBox\VBoxManage.exe" hostonlyif ipconfig "VirtualBox Host-Only Ethernet Adapter #2" --ip 192.168.56.1 --netmask 255.255.255.0
 ```
 
-Assign `VirtualBox Host-Only Ethernet Adapter #2` as a second network adapter on all three VMs.
+Gán `VirtualBox Host-Only Ethernet Adapter #2` làm network adapter thứ hai trên cả ba VM.
 
 ---
 
-## 2. Ubuntu VM Setup
+## 2. Thiết lập Ubuntu VM
 
 **Specs:** 8GB RAM, 100GB disk, 10 vCPUs  
-**Adapters:** Adapter 1 = Host-Only (`192.168.56.10`), Adapter 2 = Bridged (internet for install)
+**Adapters:** Adapter 1 = Host-Only (`192.168.56.10`), Adapter 2 = Bridged (internet để cài đặt)
 
 ### Static IP (Netplan)
 
@@ -38,28 +38,28 @@ network:
   version: 2
 ```
 
-Disable cloud-init network management so it persists:
+Vô hiệu hóa cloud-init network management để cấu hình được duy trì:
 
 ```bash
 sudo bash -c 'echo "network: {config: disabled}" > /etc/cloud/cloud.cfg.d/99-disable-network-config.cfg'
 sudo netplan apply
 ```
 
-### Wazuh Install
+### Cài đặt Wazuh
 
 ```bash
 curl -sO https://packages.wazuh.com/4.14/wazuh-install.sh && sudo bash ./wazuh-install.sh -a
 ```
 
-Takes 10-20 minutes. Credentials are printed at the end — save them.
+Quá trình này mất 10–20 phút. Credentials được hiển thị khi hoàn tất — hãy lưu lại.
 
-### Fix wazuh-manager startup timeout
+### Khắc phục startup timeout của wazuh-manager
 
 ```bash
 sudo systemctl edit wazuh-manager
 ```
 
-Add:
+Thêm:
 
 ```ini
 [Unit]
@@ -77,7 +77,7 @@ sudo systemctl daemon-reload
 
 ---
 
-## 3. Kali Linux Setup
+## 3. Thiết lập Kali Linux
 
 **Adapter 2:** Host-Only → `192.168.56.20`
 
@@ -87,15 +87,15 @@ sudo nmcli con modify host-only connection.autoconnect yes
 sudo nmcli con up host-only
 ```
 
-Access the Wazuh dashboard from Kali: `https://192.168.56.10`
+Truy cập Wazuh dashboard từ Kali: `https://192.168.56.10`
 
 ---
 
-## 4. Windows 10 Agent Setup
+## 4. Thiết lập Windows 10 Agent
 
-**Adapter 2:** Host-Only → `192.168.56.30` (set manually in IPv4 settings, no gateway)
+**Adapter 2:** Host-Only → `192.168.56.30` (thiết lập thủ công trong IPv4 settings, không có gateway)
 
-### Install Wazuh Agent
+### Cài đặt Wazuh Agent
 
 ```powershell
 Invoke-WebRequest -Uri "https://packages.wazuh.com/4.x/windows/wazuh-agent-4.14.5-1.msi" -OutFile "C:\wazuh-agent.msi"
@@ -103,7 +103,7 @@ msiexec /i C:\wazuh-agent.msi WAZUH_MANAGER="192.168.56.10" /q
 NET START WazuhSvc
 ```
 
-### Install Sysmon
+### Cài đặt Sysmon
 
 ```powershell
 Invoke-WebRequest -Uri "https://download.sysinternals.com/files/Sysmon.zip" -OutFile "C:\Sysmon.zip"
@@ -112,9 +112,9 @@ Invoke-WebRequest -Uri "https://raw.githubusercontent.com/SwiftOnSecurity/sysmon
 C:\Sysmon\Sysmon64.exe -accepteula -i C:\Sysmon\sysmonconfig.xml
 ```
 
-### Log Collection Config
+### Cấu hình Log Collection
 
-Add to `C:\Program Files (x86)\ossec-agent\ossec.conf` inside `<ossec_config>`:
+Thêm vào `C:\Program Files (x86)\ossec-agent\ossec.conf`, bên trong `<ossec_config>`:
 
 ```xml
 <localfile>
@@ -123,7 +123,7 @@ Add to `C:\Program Files (x86)\ossec-agent\ossec.conf` inside `<ossec_config>`:
 </localfile>
 ```
 
-Security, System, and Application channels are included by default.
+Các channel Security, System và Application được bao gồm theo mặc định.
 
 ```powershell
 NET STOP WazuhSvc
@@ -132,8 +132,8 @@ NET START WazuhSvc
 
 ---
 
-## 5. Verification
+## 5. Xác minh
 
-- Agent shows **Active** in dashboard: Menu → Agents
-- Events flowing: click agent → Events tab
-- MITRE ATT&CK tactics populating from baseline Windows activity
+- Agent hiển thị **Active** trong dashboard: Menu → Agents
+- Events đang được truyền: nhấp vào agent → tab Events
+- Các MITRE ATT&CK tactics được điền từ baseline Windows activity
