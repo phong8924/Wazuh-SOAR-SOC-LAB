@@ -1,322 +1,274 @@
-# SOC Lab 
+# Wazuh SOAR SOC Lab
 
-![Wazuh](https://img.shields.io/badge/Wazuh-4.14.5-blue?style=flat-square)
-![TheHive](https://img.shields.io/badge/TheHive-5.2-orange?style=flat-square)
-![Cortex](https://img.shields.io/badge/Cortex-3.1-orange?style=flat-square)
-![Shuffle](https://img.shields.io/badge/Shuffle-SOAR-red?style=flat-square)
-![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-red?style=flat-square)
-![Sysmon](https://img.shields.io/badge/Sysmon-Windows-blue?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Active-brightgreen?style=flat-square)
+Đây là dự án xây dựng Trung tâm Điều hành An ninh mạng (SOC) thực hành trên VirtualBox. Lab mô phỏng toàn bộ quy trình từ thu thập log, xây dựng luật phát hiện, tương quan sự kiện, giảm cảnh báo giả và trực quan hóa dữ liệu đến tự động hóa phản ứng sự cố bằng SOAR.
 
-A local, hands-on Security Operations Centre lab built on VirtualBox. Built from the ground up — starting with raw log collection and working up through detection engineering, correlation, noise reduction, reporting, and full SOAR automation.
+> Dự án phục vụ mục đích học tập và thử nghiệm trong môi trường cô lập. Không thực hiện các kịch bản tấn công trên hệ thống khi chưa được cho phép.
 
 ---
 
-## Architecture
+## Kiến trúc hệ thống
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                     Host: Windows 11 (MSI)                      │
-│                     32GB RAM, VirtualBox                        │
-│                                                                 │
-│   ┌──────────────────────┐      ┌──────────────────────┐        │
-│   │    Ubuntu 24.04      │      │     Kali Linux       │        │
-│   │  Wazuh + TheHive     │      │  Attacker / Analyst  │        │
-│   │  Cortex + Shuffle    │      │                      │        │
-│   │  192.168.56.10       │      │  192.168.56.20       │        │
-│   │  15GB RAM            │      │  6GB RAM             │        │
-│   └──────────┬───────────┘      └──────────┬───────────┘        │
-│              │                             │                    │
-│              └──────────────┬──────────────┘                    │
-│                             │  Host-Only Network                │
-│                    192.168.56.0/24                              │
-└─────────────────────────────────────────────────────────────────┘
-                              │
-                    Bridged Adapter
-                              │
-              ┌───────────────┴───────────────┐
-              │     Windows 11 (MSI Laptop)   │
-              │     Wazuh Agent + Sysmon      │
-              │     192.168.0.25              │
-              │     Physical Machine          │
-              └───────────────────────────────┘
+```text
+Máy chủ vật lý: Windows 11 (MSI) + VirtualBox
+│
+├── Ubuntu 24.04 (192.168.56.10, 15 GB RAM)
+│   ├── Wazuh Manager, Indexer và Dashboard
+│   ├── Shuffle SOAR
+│   ├── TheHive
+│   └── Cortex
+│
+├── Kali Linux (192.168.56.20, 6 GB RAM)
+│   └── Máy tấn công và máy trạm của chuyên viên phân tích
+│
+├── Windows 10 VM (192.168.56.30, 4 GB RAM)
+│   └── Máy nạn nhân: Wazuh Agent + Sysmon
+│
+└── Windows 11 MSI (192.168.0.25)
+    └── Máy nạn nhân vật lý: Wazuh Agent + Sysmon
+
+Mạng Host-Only: 192.168.56.0/24
+Windows 11 vật lý kết nối tới máy chủ qua Bridged Adapter.
 ```
 
-| Machine | Role | IP | RAM | Network |
-|---|---|---|---|---|
-| Ubuntu 24.04 (VM) | Wazuh + TheHive + Cortex + Shuffle | 192.168.56.10 | 15GB | Host-Only |
-| Kali Linux (VM) | Attacker / Analyst workstation | 192.168.56.20 | 6GB | Host-Only |
-| Windows 10 (VM) | Victim endpoint — Wazuh agent | 192.168.56.30 | 4GB | Host-Only |
-| Windows 11 MSI (Physical) | Second victim — Wazuh agent | 192.168.0.25 | — | Bridged |
+| Máy | Vai trò | Địa chỉ IP | RAM | Kết nối |
+|---|---|---:|---:|---|
+| Ubuntu 24.04 VM | Máy chủ Wazuh, Shuffle, TheHive và Cortex | `192.168.56.10` | 15 GB | Host-Only + Bridged |
+| Kali Linux VM | Máy tấn công / máy trạm phân tích | `192.168.56.20` | 6 GB | Host-Only |
+| Windows 10 VM | Endpoint nạn nhân thứ nhất | `192.168.56.30` | 4 GB | Host-Only |
+| Windows 11 MSI | Endpoint nạn nhân thứ hai | `192.168.0.25` | — | Mạng vật lý / Bridged |
 
 ---
 
-## Phases
+## Các giai đoạn của dự án
 
-| # | Phase | Summary | Doc |
-|---|---|---|---|
-| 1 | **Infrastructure** | Wazuh all-in-one, agents, Sysmon, log channels | [phase1-setup.md](docs/phase1-setup.md) |
-| 2 | **Normalisation** | 12 custom detection rules mapped to MITRE ATT&CK | [phase2-normalisation.md](docs/phase2-normalisation.md) |
-| 3 | **Correlation** | Frequency rules — brute force, recon chain, persistence chain | [phase3-correlation.md](docs/phase3-correlation.md) |
-| 4 | **Aggregation** | Noise suppression — false positive investigation and surgical suppression | [phase4-aggregation.md](docs/phase4-aggregation.md) |
-| 5 | **Reporting** | OpenSearch dashboards — attack overview and security posture | [phase5-reporting.md](docs/phase5-reporting.md) |
-| 6 | **SOAR** | Wazuh → Shuffle → TheHive pipeline with Cortex enrichment | [phase6-soar.md](docs/phase6-soar.md) |
+| Giai đoạn | Nội dung | Tài liệu |
+|---|---|---|
+| 1. Hạ tầng | Triển khai Wazuh all-in-one, agent, Sysmon và các kênh log | [phase1-setup.md](docx/phase1-setup.md) |
+| 2. Chuẩn hóa và phát hiện | Xây dựng 12 luật phát hiện tùy chỉnh, ánh xạ MITRE ATT&CK | [phase2-normalisation.md](docx/phase2-normalisation.md) |
+| 3. Tương quan | Phát hiện brute force, chuỗi trinh sát và chuỗi duy trì truy cập | [phase3-correlation.md](docx/phase3-correlation.md) |
+| 4. Tổng hợp và tinh chỉnh | Điều tra cảnh báo giả, giảm nhiễu có chọn lọc | [phase4-aggregation.md](docx/phase4-aggregation.md) |
+| 5. Báo cáo | Xây dựng dashboard tổng quan tấn công và trạng thái an ninh | [phase5-reporting.md](docx/phase5-reporting.md) |
+| 6. SOAR | Tự động hóa luồng Wazuh → Shuffle → TheHive, làm giàu bằng Cortex | [phase6-soar.md](docx/phase6-soar.md) |
 
 ---
 
-## Phase 1 — Infrastructure
+## Giai đoạn 1 — Xây dựng hạ tầng
 
-### What was built
+Lab sử dụng Ubuntu 24.04 làm máy chủ trung tâm, chạy Wazuh 4.14.5 theo mô hình all-in-one gồm Manager, Indexer và Dashboard. Kali Linux được dùng để mô phỏng hoạt động tấn công và truy cập giao diện quản trị tại `https://192.168.56.10`.
 
-- Ubuntu 24.04 VM running Wazuh 4.14.5 all-in-one (manager + indexer + dashboard)
-- Kali Linux as the analyst workstation — accesses the dashboard at `https://192.168.56.10`
-- Windows 10 VM with Wazuh agent pointing at the manager
-- Sysmon installed with SwiftOnSecurity config — deep telemetry across process creation, network connections, registry modifications, file drops
-- Log collection configured: Security, System, Application, and Sysmon/Operational channels
-- Agent verified Active with events flowing into the dashboard
-
-### What is Sysmon?
-
-Sysmon (System Monitor) is a free Microsoft tool that logs what every process does after it starts — command lines, network connections, registry changes, DLL loads, file drops. Standard Windows Event Logs tell you who logged in. Sysmon tells you what happened next.
+Windows 10 VM và máy Windows 11 vật lý được cài Wazuh Agent cùng Sysmon. Các endpoint gửi Security, System, Application và Sysmon/Operational log về Wazuh Manager. Sysmon cung cấp dữ liệu chi tiết về tiến trình, dòng lệnh, kết nối mạng, thay đổi Registry và các hành vi trên tệp mà Windows Event Log tiêu chuẩn không thể hiện đầy đủ.
 
 ![Wazuh Dashboard](assets/wazuh.png)
 
-![Agent Active](assets/WazuhAgentActivate.png)
+![Wazuh Agent hoạt động](assets/WazuhAgentActivate.png)
 
-→ Full setup guide: [docs/phase1-setup.md](docs/phase1-setup.md)
-
----
-
-## Phase 2 — Normalisation
-
-### How detection works
-
-Every log flowing into Wazuh goes through two stages:
-
-1. **Decoder** — parses the raw log and extracts structured fields (`win.eventdata.image`, `win.eventdata.commandLine`, etc.)
-2. **Rules engine** — checks every rule against those fields and fires alerts on matches
-
-Rules are written in XML and stored in `/var/ossec/etc/rules/local_rules.xml`.
-
-**Key gotcha:** The dashboard shows fields with a `data.` prefix (`data.win.eventdata.image`). Rules reference the same fields **without** the prefix (`win.eventdata.image`). Wrong prefix = silent failure — the rule loads but never fires.
-
-### Custom rules written
-
-| Rule ID | Category | Detects | MITRE |
-|---|---|---|---|
-| 100001 | Execution | PowerShell encoded commands | T1059.001 |
-| 100002 | Execution | LOLBins loading remote content | T1218 |
-| 100003 | Execution | WMI execution | T1047 |
-| 100004 | Execution | Shell spawned from Office | T1204.002 |
-| 100100 | Persistence | Service ImagePath registry modification | T1031, T1050 |
-| 100101 | Persistence | Registry Run key modification | T1547.001 |
-| 100102 | Persistence | Scheduled task creation | T1053.005 |
-| 100200 | Credential Access | LSASS process access | T1003.001 |
-| 100300 | Discovery | Recon commands (whoami, net, ipconfig) | T1082, T1033 |
-| 100301 | Discovery | Outbound connections to attack ports | T1046 |
-| 100400 | Defense Evasion | CreateRemoteThread injection | T1055 |
-| 100401 | Defense Evasion | PowerShell evasion flags | T1059.001 |
-
-Rules source: [config/wazuh/local_rules.xml](config/wazuh/local_rules.xml)
-
-![Custom Rule Alert Firing](assets/LocalRuleAlert.png)
-
-![Local Rules XML](assets/LocalRules.png)
-
-→ Full breakdown: [docs/phase2-normalisation.md](docs/phase2-normalisation.md)
+Xem hướng dẫn triển khai tại [Giai đoạn 1 — Thiết lập hạ tầng](docx/phase1-setup.md).
 
 ---
 
-## Phase 3 — Correlation
+## Giai đoạn 2 — Chuẩn hóa và xây dựng luật phát hiện
 
-### How correlation works
+Mỗi log gửi về Wazuh được xử lý qua hai lớp:
 
-Phase 2 rules fire on individual events. Phase 3 rules fire on **patterns** — bursts and chains of events that individually look benign but together signal an attack.
+1. **Decoder** phân tích log thô và trích xuất các trường có cấu trúc, chẳng hạn `win.eventdata.image` và `win.eventdata.commandLine`.
+2. **Rules engine** đối chiếu các trường đã giải mã với luật và tạo cảnh báo khi điều kiện khớp.
 
-Wazuh frequency rules count how many times a parent rule fires within a time window. When the threshold is hit, a single high-severity correlation alert fires.
+Các luật tùy chỉnh được lưu tại `/var/ossec/etc/rules/local_rules.xml` trên Wazuh Manager. Bản cấu hình của dự án nằm trong [config/wazuh/local_rules.xml](config/wazuh/local_rules.xml).
 
-Key XML elements:
-- `frequency` + `timeframe` — N hits within T seconds
-- `if_matched_sid` — chain off one specific rule
-- `if_matched_group` — chain off any rule in a named group
-- `same_field` — scope the count to one attacker or user
+> Trên Dashboard, tên trường thường có tiền tố `data.` (ví dụ `data.win.eventdata.image`), nhưng trong luật XML phải dùng tên trường không có tiền tố này (`win.eventdata.image`). Dùng sai tên trường có thể khiến luật được nạp nhưng không bao giờ kích hoạt.
 
-### Correlation rules written
+### Các luật phát hiện tùy chỉnh
 
-| Rule | Level | Detects | MITRE |
-|---|---|---|---|
-| 100500 | 14 | 10+ failed logons from same IP in 60s | T1110.001 |
-| 100600 | 12 | 3+ recon commands by same user in 60s | T1082, T1033 |
-| 100601 | 14 | 2+ persistence techniques by same user in 120s | T1053.005, T1547.001 |
+| Rule ID | Nhóm hành vi | Phát hiện | MITRE ATT&CK |
+|---:|---|---|---|
+| 100001 | Thực thi | Lệnh PowerShell được mã hóa | T1059.001 |
+| 100002 | Thực thi | LOLBin tải nội dung từ xa | T1218 |
+| 100003 | Thực thi | Thực thi lệnh bằng WMI | T1047 |
+| 100004 | Thực thi | Ứng dụng Office tạo tiến trình shell | T1204.002 |
+| 100100 | Duy trì truy cập | Thay đổi `ImagePath` của Windows service | T1031, T1050 |
+| 100101 | Duy trì truy cập | Thay đổi Registry Run key | T1547.001 |
+| 100102 | Duy trì truy cập | Tạo Scheduled Task bằng `schtasks.exe` | T1053.005 |
+| 100200 | Truy cập thông tin xác thực | Tiến trình truy cập LSASS | T1003.001 |
+| 100300 | Khám phá | Thực thi các lệnh trinh sát hệ thống | T1082, T1033 |
+| 100301 | Khám phá mạng | Kết nối ra ngoài tới các cổng cần giám sát | T1046 |
+| 100400 | Né tránh phòng thủ | Tiêm tiến trình bằng CreateRemoteThread | T1055 |
+| 100401 | Né tránh phòng thủ | PowerShell sử dụng các cờ né tránh | T1059.001 |
 
-### Full kill chain test
+![Cảnh báo từ luật tùy chỉnh](assets/LocalRuleAlert.png)
 
-All three chains confirmed firing in a single session:
+![Tệp luật tùy chỉnh](assets/LocalRules.png)
 
-```
-Brute Force  →  Kali (Metasploit smb_login) → Windows 10:445    → rule 100500 [level 14]
-Recon        →  whoami, ipconfig, net user, systeminfo            → rule 100600 [level 12]
-Persistence  →  schtasks /create + reg add Run key               → rule 100601 [level 14]
+Xem cách viết, kiểm thử và ánh xạ luật tại [Giai đoạn 2 — Chuẩn hóa](docx/phase2-normalisation.md).
+
+---
+
+## Giai đoạn 3 — Tương quan sự kiện
+
+Luật ở giai đoạn 2 phát hiện từng sự kiện riêng lẻ. Giai đoạn 3 sử dụng luật theo tần suất để phát hiện một chuỗi hành vi: nhiều sự kiện có vẻ bình thường khi đứng riêng nhưng tạo thành dấu hiệu tấn công khi xuất hiện liên tiếp.
+
+Các thành phần XML chính gồm:
+
+- `frequency` và `timeframe`: số lần khớp trong một khoảng thời gian;
+- `if_matched_sid`: tương quan từ một rule cụ thể;
+- `if_matched_group`: tương quan từ các rule thuộc cùng nhóm;
+- `same_field`: chỉ đếm sự kiện của cùng nguồn, người dùng hoặc thực thể.
+
+| Rule ID | Level | Phát hiện | MITRE ATT&CK |
+|---:|---:|---|---|
+| 100500 | 14 | Từ 10 lần đăng nhập thất bại của cùng IP trong 60 giây | T1110.001 |
+| 100600 | 12 | Từ 3 lệnh trinh sát của cùng người dùng trong 60 giây | T1082, T1033 |
+| 100601 | 14 | Từ 2 kỹ thuật duy trì truy cập của cùng người dùng trong 120 giây | T1053.005, T1547.001 |
+
+```text
+Brute force  → Kali/Metasploit → Windows 10:445       → Rule 100500, level 14
+Trinh sát    → whoami, ipconfig, net, systeminfo      → Rule 100600, level 12
+Duy trì      → schtasks /create + Registry Run key    → Rule 100601, level 14
 ```
 
-![Brute Force Running](assets/BruteForce.png)
+![Thử nghiệm brute force](assets/BruteForce.png)
 
-![Correlation Rule Firing](assets/CorrelationRuleTrigger.png)
+![Luật tương quan được kích hoạt](assets/CorrelationRuleTrigger.png)
 
-![Recon Chain Alert](assets/ReconAlert.png)
+![Cảnh báo chuỗi trinh sát](assets/ReconAlert.png)
 
-→ Full breakdown: [docs/phase3-correlation.md](docs/phase3-correlation.md)
+Xem kịch bản kiểm thử đầy đủ tại [Giai đoạn 3 — Tương quan](docx/phase3-correlation.md).
 
 ---
 
-## Phase 4 — Aggregation
+## Giai đoạn 4 — Giảm nhiễu và cảnh báo giả
 
-### How aggregation works
+Mục tiêu của giai đoạn này là giảm khối lượng cảnh báo để chuyên viên tập trung vào sự kiện có thể hành động. Quy trình gồm xác định các rule tạo nhiều cảnh báo, kiểm tra nguyên nhân thực tế rồi chỉ loại bỏ hành vi đã được xác minh là hợp lệ.
 
-Aggregation cuts alert volume so analysts only see what is actionable. The approach: identify the highest-volume rules, investigate what's actually triggering them, then suppress known-good activity surgically — not with blanket silencing.
+Phát hiện nổi bật là rule 92213 tạo 112 cảnh báo mức 15 khi `cleanmgr.exe` giải nén DLL vào thư mục Temp. Đây là hành vi bình thường của Windows Disk Cleanup nhưng có thể gây mệt mỏi cảnh báo và làm giảm giá trị của mức Critical.
 
-Core technique: `level="0"` + `<options>no_log</options>` — the alert is completely discarded before it reaches the dashboard or logs.
+Các rule suppression sử dụng `level="0"` và `<options>no_log</options>`:
 
-### Key finding — level 15 false positive storm
+| Rule ID | Nội dung được loại khỏi cảnh báo |
+|---:|---|
+| 100700 | `cleanmgr.exe` hoặc `OneDrivePatcher.exe` tạo tệp trong Temp |
+| 100701 | Sự kiện cài đặt gói `dpkg` trên Ubuntu |
+| 100702 | Sự kiện `dpkg` ở trạng thái half-configured |
+| 100703 | Hoạt động DLL hợp lệ của `svchost.exe` trong thư mục Windows |
+| 100704 | Kết nối ra ngoài hợp lệ của OneDrive |
+| 100705 | Lệnh khám phá do tài khoản `SYSTEM` thực thi hợp lệ |
+| 100706 | PowerShell có cờ né tránh nhưng được khởi tạo bởi tiến trình hệ thống tin cậy |
 
-Rule 92213 ("Executable file dropped in folder commonly used by malware") fired **112 times at level 15 (critical)**. Every hit came from `cleanmgr.exe` — Windows Disk Cleanup extracts 20+ DLLs into Temp each run. An analyst seeing 112 critical alerts would spend hours investigating Disk Cleanup, or start ignoring level 15 entirely.
+![Điều tra cảnh báo giả](assets/FalsePositive.png)
 
-### Suppression rules written
+![Danh sách tiến trình tin cậy](assets/TrustedProcessesList.png)
 
-| Rule | Suppresses | Type |
+Chi tiết phương pháp điều tra và kiểm thử suppression nằm tại [Giai đoạn 4 — Tổng hợp và tinh chỉnh](docx/phase4-aggregation.md).
+
+---
+
+## Giai đoạn 5 — Dashboard và báo cáo
+
+Hai dashboard được xây dựng trong OpenSearch Dashboards:
+
+- **Attack Overview**: dòng thời gian cảnh báo theo mức độ, phân bố MITRE tactic, tổng số cảnh báo, số lần kích hoạt rule tương quan và các rule xuất hiện nhiều nhất.
+- **Security Posture**: CVE đang hoạt động trên Windows 10, số lượng lỗ hổng, các kiểm tra SCA thất bại và tỷ lệ đạt/không đạt tuân thủ.
+
+Trong khoảng thời gian được chọn khi thực hiện lab, dữ liệu ghi nhận 324 cảnh báo, 12 cảnh báo tương quan, 457 cảnh báo CVE mức cao và 420 kiểm tra SCA không đạt. Các con số phụ thuộc vào time range và dữ liệu hiện có trong OpenSearch, vì vậy có thể thay đổi khi lab tiếp tục hoạt động.
+
+![Dashboard tổng quan tấn công](assets/Dashboard.png)
+
+![Dashboard trạng thái an ninh](assets/Dashboard2.png)
+
+Xem cấu hình panel và DQL filter tại [Giai đoạn 5 — Báo cáo](docx/phase5-reporting.md).
+
+---
+
+## Giai đoạn 6 — Tự động hóa SOAR
+
+Pipeline SOAR chuyển các cảnh báo có giá trị từ Wazuh sang TheHive để chuyên viên phân tích xử lý, đồng thời sử dụng Cortex để làm giàu observable bằng dữ liệu tình báo mối đe dọa.
+
+```text
+Endpoint phát sinh hành vi
+        ↓
+Wazuh Agent + Sysmon thu thập sự kiện
+        ↓
+Wazuh phát hiện và gửi webhook
+        ↓
+Shuffle lọc, ánh xạ mức độ và bổ sung ngữ cảnh
+        ↓
+TheHive tạo alert để chuyên viên phân loại
+        ↓
+Alert được chuyển thành case và thêm observable
+        ↓
+Cortex chạy VirusTotal / Abuse_Finder analyzer
+```
+
+Shuffle bỏ qua alert có severity nhỏ hơn 2, sau đó ánh xạ severity của payload Wazuh sang TheHive:
+
+| Wazuh severity | Khoảng Wazuh rule level | TheHive severity | Mức độ |
+|---:|---:|---:|---|
+| 0 | 0–3 | 1 | Low |
+| 1 | 4–7 | 2 | Medium |
+| 2 | 8–11 | 3 | High |
+| 3 | 12–15 | 4 | Critical |
+
+Mã tạo nội dung alert và JSON body dùng trong Shuffle được lưu tại:
+
+- [config/shuffle/build_alert.py](config/shuffle/build_alert.py)
+- [config/shuffle/thehive_alert_body.json](config/shuffle/thehive_alert_body.json)
+
+![Workflow SOAR](assets/Workflow2.png)
+
+![Alert đã được làm giàu trong TheHive](assets/HiveSevereAlert.png)
+
+![Kết quả Cortex Analyzer](assets/AnalyserReport.png)
+
+Xem hướng dẫn triển khai và kiểm thử end-to-end tại [Giai đoạn 6 — SOAR](docx/phase6-soar.md).
+
+---
+
+## Truy cập các dịch vụ
+
+Khi các máy và dịch vụ đã được khởi động theo tài liệu từng giai đoạn:
+
+| Dịch vụ | Địa chỉ |
+|---|---|
+| Wazuh Dashboard | `https://192.168.56.10` |
+| Shuffle | `http://192.168.56.10:3001` |
+| TheHive | `http://192.168.56.10:9000` |
+| Cortex | `http://192.168.56.10:9001` |
+
+Repo hiện lưu tài liệu và các tệp cấu hình cần thiết; chưa có script tự động khởi động hoặc dừng toàn bộ lab. Hãy bắt đầu với [docx/phase1-setup.md](docx/phase1-setup.md), sau đó thực hiện lần lượt các giai đoạn.
+
+---
+
+## Công nghệ sử dụng
+
+| Công nghệ | Phiên bản trong lab | Vai trò |
 |---|---|---|
-| 100700 | cleanmgr.exe / OneDrivePatcher.exe dropping in Temp (rule 92213) | Selective |
-| 100701 | All Ubuntu dpkg package installs (rule 2902) | Blanket |
-| 100702 | All Ubuntu dpkg half-configured events (rule 2904) | Blanket |
-| 100703 | svchost.exe DLL activity in Windows root (rule 92219) | Selective |
-| 100704 | OneDrive outbound connections on common ports (rule 100301) | Selective |
-
-Rule 100704 fixed a false positive in our own Phase 2 rule — 100301 was detecting outbound connections to attack ports, but firing on OneDrive syncing to port 443. Fixed with a CDB list of trusted processes at `/var/ossec/etc/lists/trusted-outbound-processes`.
-
-![False Positive Investigation](assets/FalsePositive.png)
-
-![Trusted Processes CDB List](assets/TrustedProcessesList.png)
-
-→ Full breakdown: [docs/phase4-aggregation.md](docs/phase4-aggregation.md)
+| Wazuh | 4.14.5 | SIEM, phát hiện, tương quan và cảnh báo |
+| Sysmon | Bản cài trong lab | Thu thập telemetry chuyên sâu trên Windows |
+| SwiftOnSecurity Sysmon Config | Bản dùng khi triển khai | Cấu hình thu thập Sysmon |
+| Shuffle | Bản dùng khi triển khai | Điều phối và tự động hóa SOAR |
+| TheHive | 5.2.x | Quản lý alert, case và quy trình phân tích |
+| Cortex | 3.1.x | Làm giàu observable |
+| VirtualBox | 7.x | Nền tảng ảo hóa |
+| Ubuntu | 24.04 LTS | Hệ điều hành máy chủ |
+| Kali Linux | Bản dùng trong lab | Mô phỏng tấn công và phân tích |
+| Windows 10 / 11 | Pro / Home | Endpoint giám sát |
 
 ---
 
-## Phase 5 — Reporting
+## Cấu trúc repository
 
-### Dashboards built
-
-**Attack Overview** — what happened, when, and which MITRE techniques were used
-- Alert timeline by severity (date histogram)
-- MITRE tactics distribution (pie chart)
-- Total alerts and correlation rule hits (metrics)
-- Top rules by alert count (data table)
-
-**Security Posture** — vulnerability exposure and compliance failures
-- Active CVEs on Windows 10 (data table)
-- Total CVE count and SCA failure count (metrics)
-- Top SCA compliance failures (horizontal bar)
-- SCA pass/fail distribution (pie chart)
-
-### Key findings
-
-- **324 total alerts** over the lab period with **12 correlation rule hits**
-- **457 high severity CVEs** on unpatched Windows 10 — all CVE-2025-* series
-- **420 SCA compliance failures** — primarily SSH configuration gaps on the Ubuntu manager
-- Defense Evasion is the dominant MITRE tactic across all lab activity
-
-![Attack Overview Dashboard](assets/Dashboard.png)
-
-![Security Posture Dashboard](assets/Dashboard2.png)
-
-→ Full breakdown: [docs/phase5-reporting.md](docs/phase5-reporting.md)
-
----
-
-## Phase 6 — SOAR
-
-### What was built
-
-- Wazuh webhook integration forwards alerts to Shuffle in real time
-- Shuffle workflow filters low-severity noise, maps Wazuh severity (0–3) to TheHive severity (1–4), and creates enriched alerts in TheHive automatically
-- TheHive 5 with a dedicated SOCLab organisation and `analyst@soclab.local` as the Shuffle service account
-- Cortex 3 connected to TheHive — VirusTotal and Abuse_Finder analyzers running as Docker containers, callable with one click from any case observable
-- Second victim endpoint: Windows 11 MSI laptop (physical machine, bridged adapter) enrolled as a Wazuh agent
-
-### The pipeline
-
-```
-Attack on endpoint
-      ↓
-Wazuh detects (rule fires)
-      ↓
-Shuffle receives webhook
-      ↓  filter: severity < 2 → skip
-      ↓  enrich: map severity, build description, tag rule ID
-TheHive alert created (201)
-      ↓
-Analyst triages in TheHive
-      ↓
-Promote alert → Case
-      ↓
-Add observable → Run Cortex analyzer
-      ↓
-VirusTotal / Abuse_Finder results inline
+```text
+Wazuh-SOAR-SOC-LAB/
+├── assets/                  # Ảnh minh họa và bằng chứng kiểm thử
+├── config/
+│   ├── shuffle/             # Python và JSON tạo alert TheHive
+│   └── wazuh/               # Bộ luật Wazuh tùy chỉnh
+├── docx/                    # Tài liệu chi tiết cho sáu giai đoạn
+└── README.md                # Tổng quan dự án
 ```
 
-### Severity mapping
+## Tài liệu tham khảo
 
-| Wazuh severity | TheHive severity | Label |
-|---|---|---|
-| 0 | 1 | Low |
-| 1 | 2 | Medium |
-| 2 | 3 | High |
-| 3 | 4 | Critical |
-
-![SOAR Workflow — Webhook → Build Alert → TheHive](assets/Workflow2.png)
-
-![TheHive — Enriched Critical Alerts with Rule Tags](assets/HiveSevereAlert.png)
-
-![Cortex Analyzer Results on Observable](assets/AnalyserReport.png)
-
-→ Full breakdown: [docs/phase6-soar.md](docs/phase6-soar.md)
-
----
-
-## Quick Start
-
-```powershell
-# Start the lab (from Windows host)
-python automation/start_lab.py
-
-# Stop the lab
-python automation/stop_lab.py
-```
-
-See [automation/README.md](automation/README.md) for full details.
-
----
-
-## Tech Stack
-
-| Tool | Version | Purpose |
-|---|---|---|
-| Wazuh | 4.14.5 | SIEM — detection, correlation, alerting |
-| Sysmon | Latest | Deep Windows endpoint telemetry |
-| SwiftOnSecurity Sysmon Config | Latest | Tuned Sysmon ruleset |
-| Shuffle | Latest | SOAR — automated alert routing |
-| TheHive | 5.2.x | Case management and analyst workspace |
-| Cortex | 3.1.x | Observable enrichment engine |
-| VirtualBox | 7.x | Hypervisor |
-| Ubuntu | 24.04 LTS | Server OS |
-| Kali Linux | Latest | Attacker / analyst workstation |
-| Windows 10 | Pro | Victim endpoint (VM) |
-| Windows 11 | Home | Second victim endpoint (physical) |
-
----
-
-## References
-
-- [Sigma Rules](https://github.com/SigmaHQ/sigma) — detection rules used as reference when writing custom Wazuh rules
-- [SwiftOnSecurity Sysmon Config](https://github.com/SwiftOnSecurity/sysmon-config) — tuned Sysmon ruleset
-- [Wazuh Documentation](https://documentation.wazuh.com) — official docs
-- [MITRE ATT&CK](https://attack.mitre.org) — threat framework used to tag all custom rules
+- [Wazuh Documentation](https://documentation.wazuh.com/) — tài liệu chính thức của Wazuh
+- [MITRE ATT&CK](https://attack.mitre.org/) — khung kỹ thuật dùng để ánh xạ luật phát hiện
+- [Sigma Rules](https://github.com/SigmaHQ/sigma) — nguồn tham khảo khi xây dựng logic phát hiện
+- [SwiftOnSecurity Sysmon Config](https://github.com/SwiftOnSecurity/sysmon-config) — cấu hình Sysmon tham khảo
